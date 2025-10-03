@@ -10,177 +10,137 @@ const options = {
   providedIn: 'root',
 })
 export class ApiService {
-  // to hold search key from header component
+  // Search key shared between header and home/view components
   searchKey = new BehaviorSubject('');
+  
+  // Messages and local cache
   wishlistMsg: string = '';
   apiWishlist: number[] = [];
   apiCart: number[] = [];
   products: any[] = [];
-  cartCount = new BehaviorSubject<any[]>([]);
+  cartCount = new BehaviorSubject<number[]>([]);
 
   constructor(private http: HttpClient) {}
 
-  //register
-  register(username: any, email: any, password: any) {
-    const body = {
+  // ------------------ Auth ------------------
+  register(username: string, email: string, password: string) {
+    return this.http.post('http://localhost:3000/register', {
       username,
       email,
       password,
-    };
-    // server call to register an account and return response to register component
-    return this.http.post('http://localhost:3000/register', body);
+    });
   }
 
-  //login
-  login(email: any, password: any) {
-    const body = {
-      email,
-      password,
-    };
-    // server call to register an account and return response to login component
-    return this.http.post('http://localhost:3000/login', body);
+  login(email: string, password: string) {
+    return this.http.post('http://localhost:3000/login', { email, password });
   }
 
-  //all products api
+  // ------------------ Products ------------------
   getAllProducts() {
     return this.http.get('http://localhost:3000/all-products');
   }
 
-  //view products api
   viewProduct(productId: any) {
     return this.http.get('http://localhost:3000/view-product/' + productId);
   }
 
-  // appending token to http headee
+  // ------------------ Auth Header ------------------
   appendToken() {
-    // fetch token from local Storage
     const token = localStorage.getItem('token') || '';
-    // create http header
     let headers = new HttpHeaders();
     if (token) {
-      //append token inside http headers
       headers = headers.append('access-token', token);
       options.headers = headers;
     }
     return options;
   }
 
-  //addTowishlist
-  addToWishlist(email: any, productId: any) {
-    const body = {
-      email,
-      productId,
-    };
+  // ------------------ Wishlist ------------------
+  addToWishlist(email: string, productId: number) {
     return this.http.post(
       'http://localhost:3000/addToWishlist/',
-      body,
+      { email, productId },
       this.appendToken()
     );
   }
 
-  //remove from wishlist
-  removeFromWishlist(email: any, productId: any) {
-    const body = {
-      email,
-      productId,
-    };
+  removeFromWishlist(email: string, productId: number) {
     return this.http.put(
       'http://localhost:3000/removeFromWishlist/',
-      body,
+      { email, productId },
       this.appendToken()
     );
   }
 
-  //addToCart
-  addToCart(email: any, productId: any, count: any) {
-    const body = {
-      email,
-      productId,
-      count,
-    };
-    return this.http.post(
-      'http://localhost:3000/addToCart/',
-      body,
-      this.appendToken()
-    );
-  }
-
-  //addToCart
-  updateCartItemCount(email: any, productId: any, count: any) {
-    const body = {
-      email,
-      productId,
-      count,
-    };
-    return this.http.put(
-      'http://localhost:3000/updateCartItemCount/',
-      body,
-      this.appendToken()
-    );
-  }
-
-  //remove from cart
-  removeFromCart(email: any, productId: any) {
-    const body = {
-      email,
-      productId,
-    };
-    return this.http.put(
-      'http://localhost:3000/removeFromCart/',
-      body,
-      this.appendToken()
-    );
-  }
-
-  //remove from cart
-  emptyCart(email: any) {
-    const body = {
-      email,
-    };
-    return this.http.put(
-      'http://localhost:3000/emptyCart/',
-      body,
-      this.appendToken()
-    );
-  }
-  // create_time: '2023-02-20T05:19:08Z';
-  // id: '2NF61948LD649100D';
-
-  //addToCheckout
-  addToCheckout(
-    email: any,
-    orderID: any,
-    transactionID: any,
-    dateAndTime: any,
-    amount: any,
-    status: any,
-    products: any,
-    detailes: any
-  ) {
-    const body = {
-      email,
-      orderID,
-      transactionID,
-      dateAndTime,
-      amount,
-      status,
-      products,
-      detailes,
-    };
-    return this.http.post(
-      'http://localhost:3000/addToCheckout/',
-      body,
-      this.appendToken()
-    );
-  }
-
-  getWishlist(email: any) {
+  getWishlist(email: string) {
     return this.http.get(
       'http://localhost:3000/getWishlist/' + email,
       this.appendToken()
     );
   }
-  getMyOrders(email: any) {
+
+  // ------------------ Cart ------------------
+  addToCart(email: string, productId: number, count: number) {
+    return this.http.post(
+      'http://localhost:3000/addToCart/',
+      { email, productId, count },
+      this.appendToken()
+    );
+  }
+
+  updateCartItemCount(email: string, productId: number, count: number) {
+    return this.http.put(
+      'http://localhost:3000/updateCartItemCount/',
+      { email, productId, count },
+      this.appendToken()
+    );
+  }
+
+  removeFromCart(email: string, productId: number) {
+    return this.http.put(
+      'http://localhost:3000/removeFromCart/',
+      { email, productId },
+      this.appendToken()
+    );
+  }
+
+  emptyCart(email: string) {
+    return this.http.put(
+      'http://localhost:3000/emptyCart/',
+      { email },
+      this.appendToken()
+    );
+  }
+
+  // ------------------ Checkout ------------------
+  addToCheckout(
+    email: string,
+    orderID: string,
+    transactionID: string,
+    dateAndTime: string,
+    amount: number,
+    status: string,
+    products: any[],
+    detailes: any
+  ) {
+    return this.http.post(
+      'http://localhost:3000/addToCheckout/',
+      {
+        email,
+        orderID,
+        transactionID,
+        dateAndTime,
+        amount,
+        status,
+        products,
+        detailes,
+      },
+      this.appendToken()
+    );
+  }
+
+  // ------------------ Orders ------------------
+  getMyOrders(email: string) {
     return this.http.get(
       'http://localhost:3000/getMyOrders/' + email,
       this.appendToken()

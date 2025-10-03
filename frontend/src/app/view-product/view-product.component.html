@@ -1,93 +1,99 @@
-<!-- header -->
-<app-header></app-header>
-<!-- Product section-->
+<!-- Header -->
+<app-header [searchBarHide]="true"></app-header>
+
+<!-- Product List Section -->
 <section class="py-5 mt-5">
   <div class="container px-3 px-lg-5 my-3">
-    <div class="row gx-4 gx-lg-4 align-items-center">
-      <div class="col-md-5">
-        <img
-          class="card-img-top mb-5 mb-md-0 rounded"
-          [src]="product.image"
-          [alt]="product.title"
-        />
-      </div>
-      <div class="col-md-1"></div>
-      <div class="col-md-6">
-        <h1 class="display-6 fw-bolder text-danger">
-          {{ product.title }}
-          <span
-            *ngIf="!email"
-            class="float-end text-secondary"
-            data-bs-toggle="modal"
-            data-bs-target="#exampleModal"
-            ><i class="fa fa-heart"></i>
-          </span>
-          <span
-            (click)="removeFromWishlist(product.id)"
-            *ngIf="email && wishlist.indexOf(product.id) >= 0"
-            class="float-end text-danger"
-            ><i class="fa fa-heart-circle-minus"></i>
-          </span>
-          <span
-            (click)="addToWishlist(product.id)"
-            *ngIf="email && wishlist.indexOf(product.id) == -1"
-            class="float-end text-secondary"
-            ><i class="fa fa-heart-circle-plus"></i>
-          </span>
-        </h1>
-        <div class="fs-5 mb-3">
-          <span class="text-decoration-line-through"
-            >${{ (product.price + 10).toFixed(2) }}</span
-          >
-          <span> ${{ product.price }}</span>
-          <span class="bg-light p-1 rounded-pill ms-5">{{
-            product.category
-          }}</span>
-        </div>
-        <p style="text-align: justify" class="lead">
-          <span class="fs-4 text-danger">Product Features: </span> <br />
-          {{ product.description.slice(0, 250) }}
-        </p>
-        <p class="fs-5">
-          <i class="fa-regular fa-star text-danger me-1"></i>
-          <span>{{ product.rating.rate }}</span>
-        </p>
-        <div class="d-flex">
-          <button
-            *ngIf="!email"
-            data-bs-toggle="modal"
-            data-bs-target="#exampleModal2"
-            class="btn btn-danger flex-shrink-0 w-100"
-            type="button"
-          >
-            <i class="fa-solid fa-cart-plus"></i>
-            Add to cart
-          </button>
-          <button
-            (click)="removeFromCart(product.id)"
-            *ngIf="email && cart.indexOf(product.id) >= 0"
-            class="btn btn-danger flex-shrink-0 w-100"
-            type="button"
-          >
-            <i class="fa-solid fa-ban"></i>
-            Remove from cart
-          </button>
-          <button
-            (click)="addToCart(product.id)"
-            *ngIf="email && cart.indexOf(product.id) == -1"
-            class="btn btn-success flex-shrink-0 w-100"
-            type="button"
-          >
-            <i class="fa-solid fa-cart-plus"></i>
-            Add to cart
-          </button>
+    <div class="row gx-4 gx-lg-4">
+
+      <!-- Loop through filteredProducts -->
+      <div class="col-md-3 mb-4" *ngFor="let product of filteredProducts">
+        <div class="card h-100 shadow-sm">
+          <img
+            class="card-img-top"
+            [src]="product.image"
+            [alt]="product.title"
+          />
+          <div class="card-body p-3">
+            <h5 class="card-title text-danger fw-bold">
+              {{ product.title | slice:0:25 }}...
+            </h5>
+            <p class="card-text mb-1">
+              ${{ product.price }}
+              <span class="text-decoration-line-through ms-2">
+                ${{ (product.price + 10).toFixed(2) }}
+              </span>
+            </p>
+            <p class="card-text">
+              <span class="badge bg-light text-dark">{{ product.category }}</span>
+            </p>
+            <div class="d-flex justify-content-between mt-3">
+              <!-- Wishlist Buttons -->
+              <span
+                (click)="addToWishlist(product.id)"
+                *ngIf="email && wishlist.indexOf(product.id) === -1"
+                class="text-secondary"
+                style="cursor:pointer"
+              >
+                <i class="fa fa-heart-circle-plus fa-lg"></i>
+              </span>
+              <span
+                (click)="removeFromWishlist(product.id)"
+                *ngIf="email && wishlist.indexOf(product.id) >= 0"
+                class="text-danger"
+                style="cursor:pointer"
+              >
+                <i class="fa fa-heart-circle-minus fa-lg"></i>
+              </span>
+              <span
+                *ngIf="!email"
+                data-bs-toggle="modal"
+                data-bs-target="#exampleModal"
+                class="text-secondary"
+                style="cursor:pointer"
+              >
+                <i class="fa fa-heart fa-lg"></i>
+              </span>
+
+              <!-- Add to Cart / Remove from Cart -->
+              <button
+                *ngIf="!email"
+                data-bs-toggle="modal"
+                data-bs-target="#exampleModal2"
+                class="btn btn-sm btn-danger"
+              >
+                <i class="fa-solid fa-cart-plus"></i>
+              </button>
+              <button
+                *ngIf="email && cart.indexOf(product.id) >= 0"
+                (click)="removeFromCart(product.id)"
+                class="btn btn-sm btn-danger"
+              >
+                <i class="fa-solid fa-ban"></i>
+              </button>
+              <button
+                *ngIf="email && cart.indexOf(product.id) === -1"
+                (click)="addToCart(product.id)"
+                class="btn btn-sm btn-success"
+              >
+                <i class="fa-solid fa-cart-plus"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Link to Product Details -->
+          <div class="card-footer text-center bg-white">
+            <a [routerLink]="['/view-product', product.id]" class="btn btn-outline-danger btn-sm w-100">
+              View Details
+            </a>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Modal for login alert wishlist -->
+<!-- Modals for login alerts (wishlist/cart) -->
 <div
   class="modal fade"
   id="exampleModal"
@@ -100,7 +106,7 @@
       <div class="modal-header">
         <h1 class="modal-title fs-5 text-danger" id="exampleModalLabel">
           <i class="fa-solid fa-user-plus me-3"></i>
-          <strong>Please Login for wishlisting a product !</strong>
+          <strong>Please Login to add to wishlist!</strong>
         </h1>
         <button
           type="button"
@@ -125,7 +131,7 @@
       <div class="modal-header">
         <h1 class="modal-title fs-5 text-danger" id="exampleModalLabel">
           <i class="fa-solid fa-user-plus me-3"></i>
-          <strong>Please Login for add to cart !</strong>
+          <strong>Please Login to add to cart!</strong>
         </h1>
         <button
           type="button"

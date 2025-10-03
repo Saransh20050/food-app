@@ -1,7 +1,6 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-
 import { ApiService } from '../services/api.service';
 
 @Component({
@@ -12,34 +11,34 @@ import { ApiService } from '../services/api.service';
 export class HeaderComponent implements OnInit {
   searchTerm: string = '';
   errorMsg: string = '';
-  successMsg: any = false;
+  successMsg: boolean = false;
   cartCount: number = 0;
+
   @Input() searchBarHide: boolean = false;
 
   username: string = '';
   email: string = '';
-  //login group
+
+  // ------------------ Login Form ------------------
   loginForm = this.fb.group({
-    //array
     email: [
       '',
       [
         Validators.required,
-        Validators.pattern('^[a-z0-9._%+-]+@[a-z0-9.-]+.[a-z]{2,4}$'),
+        Validators.pattern('^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$'),
       ],
     ],
     password: ['', [Validators.required, Validators.pattern('[0-9a-zA-Z]*')]],
   });
 
-  //register form group
+  // ------------------ Register Form ------------------
   registerForm = this.fb.group({
-    //array
     username: ['', [Validators.required, Validators.pattern('[a-zA-Z]*')]],
     email: [
       '',
       [
         Validators.required,
-        Validators.pattern('^[a-z0-9._%+-]+@[a-z0-9.-]+.[a-z]{2,4}$'),
+        Validators.pattern('^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,4}$'),
       ],
     ],
     password: ['', [Validators.required, Validators.pattern('[0-9a-zA-Z]*')]],
@@ -51,38 +50,34 @@ export class HeaderComponent implements OnInit {
     private router: Router
   ) {}
 
-  //login
+  // ------------------ Login ------------------
   login() {
     if (this.loginForm.valid) {
-      // alert('valid');
-      let email = this.loginForm.value.email;
-      let password = this.loginForm.value.password;
+      const loginData = this.loginForm.value as { email: string; password: string };
+      const email = loginData.email;
+      const password = loginData.password;
 
-      //login api call
       this.api.login(email, password).subscribe(
         (result: any) => {
-          //success
-          console.log(result);
-
-          // alert(result.message);
           this.successMsg = true;
-          // store username in localstorage
+
+          // Store user details & token in localStorage
           localStorage.setItem('username', result.username);
           localStorage.setItem('email', result.email);
           localStorage.setItem('wishlist', JSON.stringify(result.wishlist));
           localStorage.setItem('cart', JSON.stringify(result.cart));
-          localStorage.setItem('checkout', JSON.stringify(result.checkout));
-          // store token in localstorage
+          localStorage.setItem('checkout', JSON.stringify(result.checkout || []));
           localStorage.setItem('token', result.token);
 
-          setTimeout(() => {
-            // navigate dashboard
-            window.location.reload();
-          }, 2000);
+          // Update ApiService caches
+          this.api.apiWishlist = result.wishlist.map((i: any) => i.productId);
+          this.api.apiCart = result.cart.map((i: any) => i.productId);
+          this.api.cartCount.next(this.api.apiCart);
+
+          setTimeout(() => window.location.reload(), 1000);
         },
-        // client error
-        (result: any) => {
-          this.errorMsg = result.error.message;
+        (err: any) => {
+          this.errorMsg = err.error.message;
           setTimeout(() => {
             this.errorMsg = '';
             this.loginForm.reset();
@@ -90,48 +85,53 @@ export class HeaderComponent implements OnInit {
         }
       );
     } else {
-      alert('invalid inputs');
+      alert('Invalid inputs');
     }
   }
 
-  // register
+  // ------------------ Register ------------------
   register() {
     if (this.registerForm.valid) {
-      let username = this.registerForm.value.username;
-      let email = this.registerForm.value.email;
-      let password = this.registerForm.value.password;
+      const registerData = this.registerForm.value as { username: string; email: string; password: string };
+      const { username, email, password } = registerData;
+
       this.api.register(username, email, password).subscribe(
         (result: any) => {
-          //success
           alert(result.message);
           this.registerForm.reset();
           window.location.reload();
         },
-        // client error
-        (result: any) => {
-          alert(result.error.message);
+        (err: any) => {
+          alert(err.error.message);
         }
       );
     } else {
-      alert('invalid Input');
+      alert('Invalid input');
     }
   }
 
+  // ------------------ Logout ------------------
   logout() {
     localStorage.clear();
+    this.api.apiCart = [];
+    this.api.apiWishlist = [];
+    this.api.cartCount.next([]);
     window.location.reload();
   }
 
-  ngOnInit(): void {
-    this.username = localStorage.getItem('username') || '';
-    this.api.cartCount.subscribe((data: any) => {
-      this.cartCount = data.length;
-    });
-  }
-
+  // ------------------ Search ------------------
   search(event: any) {
     this.searchTerm = event.target.value;
-
     this.api.searchKey.next(this.searchTerm.trim());
+  }
+
+  // ------------------ Init ------------------
+  ngOnInit(): void {
+    this.username = localStorage.getItem('username') || '';
+    this.email = localStorage.getItem('email') || '';
+
+    this.api.cartCount.subscribe((cartIds: number[]) => {
+      this.cartCount = cartIds.length;
+    });
   }
 }

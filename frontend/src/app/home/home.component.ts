@@ -8,7 +8,7 @@ import { ApiService } from '../services/api.service';
   styleUrls: ['./home.component.css'],
 })
 export class HomeComponent implements OnInit {
-  products: any = [];
+  products: any[] = [];
   searchItem: string = '';
   email: string = '';
   username: string = '';
@@ -19,102 +19,124 @@ export class HomeComponent implements OnInit {
   constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
+    // Get user info from localStorage
     this.email = localStorage.getItem('email') || '';
     this.username = localStorage.getItem('username') || '';
 
+    // Fetch wishlist/cart for logged-in users
     if (this.email) {
       this.getMyItems();
     }
 
-    this.api.getAllProducts().subscribe((result: any) => {
-      this.products = result.products;
-      this.api.products = result.products;
-      localStorage.setItem('products', JSON.stringify(result.products));
-      console.log(this.products);
-    });
+    // Fetch all products
+    this.api.getAllProducts().subscribe(
+      (res: any) => {
+        this.products = res.products || [];
+        this.api.products = this.products;
+        localStorage.setItem('products', JSON.stringify(this.products));
+      },
+      (err: any) => console.error('Error fetching products', err)
+    );
 
-    this.api.searchKey.subscribe((result: any) => {
-      if (result) {
-        console.log(result);
-        this.searchItem = result;
-      } else {
-        this.searchItem = result;
-      }
+    // Subscribe to search input from header
+    this.api.searchKey.subscribe((key: string) => {
+      this.searchItem = key || '';
     });
   }
 
-  addToWishlist(productId: any) {
+  // Filter products dynamically for search
+  get filteredProducts() {
+    if (!this.searchItem) return this.products;
+    return this.products.filter((p) =>
+      p.title.toLowerCase().includes(this.searchItem.toLowerCase())
+    );
+  }
+
+  // ------------------ Wishlist ------------------
+  addToWishlist(productId: number) {
+    if (!this.email) return;
     this.api.addToWishlist(this.email, productId).subscribe(
-      // success case
-      (result: any) => {
-        console.log(result);
-        this.wishlistMsg = result.message;
-        this.api.wishlistMsg = result.message;
+      (res: any) => {
+        this.wishlistMsg = res.message;
+        this.api.wishlistMsg = res.message;
         this.getMyItems();
-        setTimeout(() => {
-          this.wishlistMsg = '';
-        }, 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      // error msg
-      (result: any) => {
-        this.wishlistMsg = result.error.message;
+      (err: any) => {
+        this.wishlistMsg = err.error?.message || 'Error adding to wishlist';
       }
     );
   }
 
-  removeFromWishlist(productId: any) {
+  removeFromWishlist(productId: number) {
+    if (!this.email) return;
     this.api.removeFromWishlist(this.email, productId).subscribe(
-      // success case
-      (result: any) => {
-        console.log(result);
-        this.wishlistMsg = result.message;
-        this.api.wishlistMsg = result.message;
-        const index = this.wishlist.indexOf(productId);
-        this.wishlist.splice(index, 1);
+      (res: any) => {
+        this.wishlistMsg = res.message;
+        this.api.wishlistMsg = res.message;
         this.getMyItems();
-        setTimeout(() => {
-          this.wishlistMsg = '';
-        }, 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      // error msg
-      (result: any) => {
-        this.wishlistMsg = result.error.message;
+      (err: any) => {
+        this.wishlistMsg = err.error?.message || 'Error removing from wishlist';
       }
     );
   }
 
-  getMyItems() {
-    this.api.getWishlist(this.email).subscribe(
-      (result: any) => {
-        let productIds: any[] = [];
-        let wishlistNew: number[] = [];
-        productIds = result.wishlist;
-        console.log(result);
-        productIds.forEach((item) => wishlistNew.push(item.productId));
-        this.wishlist = wishlistNew;
-        this.api.apiWishlist = wishlistNew;
-
-        let cartproductIds: any[] = [];
-        let cartNew: number[] = [];
-        cartproductIds = result.cart;
-        cartproductIds = result.cart;
-        cartproductIds.forEach((item) => cartNew.push(item.productId));
-        this.cart = cartNew;
-
-        this.api.apiCart = cartNew;
-        this.api.cartCount.next(cartNew);
-
-        localStorage.setItem('username', result.username);
-        localStorage.setItem('email', result.email);
-        localStorage.setItem('wishlist', JSON.stringify(result.wishlist));
-        localStorage.setItem('cart', JSON.stringify(result.cart));
-        localStorage.setItem('token', result.token);
-
-        this.router.navigateByUrl('');
+  // ------------------ Cart ------------------
+  addToCart(productId: number) {
+    if (!this.email) return;
+    this.api.addToCart(this.email, productId, 1).subscribe(
+      (res: any) => {
+        this.wishlistMsg = res.message;
+        this.api.wishlistMsg = res.message;
+        this.getMyItems();
+        setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      (result: any) => {
-        console.log(result.error.message);
+      (err: any) => {
+        this.wishlistMsg = err.error?.message || 'Error adding to cart';
       }
+    );
+  }
+
+  removeFromCart(productId: number) {
+    if (!this.email) return;
+    this.api.removeFromCart(this.email, productId).subscribe(
+      (res: any) => {
+        this.wishlistMsg = res.message;
+        this.api.wishlistMsg = res.message;
+        this.getMyItems();
+        setTimeout(() => (this.wishlistMsg = ''), 5000);
+      },
+      (err: any) => {
+        this.wishlistMsg = err.error?.message || 'Error removing from cart';
+      }
+    );
+  }
+
+  // ------------------ Fetch wishlist & cart ------------------
+  getMyItems() {
+    if (!this.email) return;
+
+    this.api.getWishlist(this.email).subscribe(
+      (res: any) => {
+        // Update wishlist & cart arrays
+        this.wishlist = res.wishlist.map((item: any) => item.productId);
+        this.cart = res.cart.map((item: any) => item.productId);
+
+        // Update ApiService caches
+        this.api.apiWishlist = [...this.wishlist];
+        this.api.apiCart = [...this.cart];
+        this.api.cartCount.next(this.cart);
+
+        // Store user data locally
+        localStorage.setItem('username', res.username);
+        localStorage.setItem('email', res.email);
+        localStorage.setItem('wishlist', JSON.stringify(res.wishlist));
+        localStorage.setItem('cart', JSON.stringify(res.cart));
+        localStorage.setItem('token', res.token);
+      },
+      (err: any) => console.error('Error fetching user items', err)
     );
   }
 }
