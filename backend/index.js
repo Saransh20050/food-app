@@ -1,3 +1,4 @@
+// index.js
 const express = require("express");
 const cors = require("cors");
 const dataService = require("./services/dataServices");
@@ -11,124 +12,159 @@ server.use(
 );
 server.use(express.json());
 
-server.listen(3000, () => {
-  console.log("cart server listening at port number 3000");
+const PORT = 3000;
+server.listen(PORT, () => {
+  console.log(`cart server listening at port number ${PORT}`);
 });
 
-// Application specific middleware
+// application specific middleware
 const appMiddleware = (req, res, next) => {
-  console.log("inside application middleware");
+  console.log("inside application middleware ->", req.method, req.path);
   next();
 };
 
 server.use(appMiddleware);
 
-// Token verify middleware
+// token verify middleware
 const jwtMiddleware = (req, res, next) => {
   console.log("inside router specific middleware");
   const token = req.headers["access-token"];
-  console.log(token);
+  console.log("access-token:", token);
   try {
     const data = jwt.verify(token, "B68DC6BECCF4A68C3D8D78FE742E2");
     req.email = data.email;
-    console.log("valid token");
+    console.log("valid token for", data.email);
     next();
-  } catch {
-    console.log("invalid token");
+  } catch (err) {
+    console.log("invalid token", err?.message);
     res.status(401).json({
       message: "Please Login!",
     });
   }
 };
 
-// ------------------- ROUTES ------------------- //
-
-// Register
+// register api call
 server.post("/register", (req, res) => {
+  console.log("inside register api", req.body);
   dataService
     .register(req.body.username, req.body.email, req.body.password)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ statusCode: 500, message: "Server error" });
+    });
 });
 
-// Login
+// login api call
 server.post("/login", (req, res) => {
-  dataService
-    .login(req.body.email, req.body.password)
-    .then((result) => res.status(result.statusCode).json(result));
+  console.log("inside login api", req.body);
+  dataService.login(req.body.email, req.body.password).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
-// All products
+// all products api
 server.get("/all-products", (req, res) => {
-  dataService.allProducts().then((result) => res.status(result.statusCode).json(result));
+  dataService.allProducts().then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
-// View product
-server.get("/view-product/:productId", (req, res) => {
-  dataService.viewProduct(req.params.productId).then((result) =>
-    res.status(result.statusCode).json(result)
-  );
-});
-
-// Search product
+// search products (new)
 server.get("/search/:key", (req, res) => {
-  dataService.searchProducts(req.params.key).then((result) =>
-    res.status(result.statusCode).json(result)
-  );
+  const key = req.params.key || "";
+  console.log("search request for:", key);
+  dataService.searchProducts(key).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
-// Wishlist
+// view product api
+server.get("/view-product/:productId", (req, res) => {
+  const id = req.params.productId;
+  dataService.viewProduct(id).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
+});
+
+// add to wishlist (requires login)
 server.post("/addToWishlist", jwtMiddleware, (req, res) => {
+  console.log("inside addtowishlist api", req.body);
   dataService
     .addToWishlist(req.body.email, req.body.productId)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
 
+// removeFromWishlist
 server.put("/removeFromWishlist", jwtMiddleware, (req, res) => {
+  console.log("inside removeFromWishlist api", req.body);
   dataService
     .removeFromWishlist(req.body.email, req.body.productId)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
 
-// Cart
+// addToCart
 server.post("/addToCart", jwtMiddleware, (req, res) => {
+  console.log("inside addToCart api", req.body);
   dataService
     .addToCart(req.body.email, req.body.productId, req.body.count)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
 
+// removeFromCart
 server.put("/removeFromCart", jwtMiddleware, (req, res) => {
+  console.log("inside removeFromCart api", req.body);
   dataService
     .removeFromCart(req.body.email, req.body.productId)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
 
+// updateCartItemCount
 server.put("/updateCartItemCount", jwtMiddleware, (req, res) => {
+  console.log("inside updateCartItemCount api", req.body);
   dataService
     .updateCartItemCount(req.body.email, req.body.productId, req.body.count)
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
 
+// emptyCart
 server.put("/emptyCart", jwtMiddleware, (req, res) => {
-  dataService.emptyCart(req.body.email).then((result) =>
-    res.status(result.statusCode).json(result)
-  );
+  console.log("inside emptyCart api", req.body);
+  dataService.emptyCart(req.body.email).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
-// Get my wishlist / orders
+// get wishlist / my items
 server.get("/getWishlist/:email", jwtMiddleware, (req, res) => {
-  dataService.getWishlist(req.params.email).then((result) =>
-    res.status(result.statusCode).json(result)
-  );
+  console.log("getWishlist for", req.params.email);
+  dataService.getWishlist(req.params.email).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
+// get my orders
 server.get("/getMyOrders/:email", jwtMiddleware, (req, res) => {
-  dataService.getMyOrders(req.params.email).then((result) =>
-    res.status(result.statusCode).json(result)
-  );
+  dataService.getMyOrders(req.params.email).then((result) => {
+    res.status(result.statusCode).json(result);
+  });
 });
 
-// Add to Checkout
+// addToCheckout
 server.post("/addToCheckout", jwtMiddleware, (req, res) => {
+  console.log("inside addToCheckout api", req.body);
   dataService
     .addToCheckout(
       req.body.email,
@@ -140,6 +176,7 @@ server.post("/addToCheckout", jwtMiddleware, (req, res) => {
       req.body.products,
       req.body.detailes
     )
-    .then((result) => res.status(result.statusCode).json(result));
+    .then((result) => {
+      res.status(result.statusCode).json(result);
+    });
 });
-

@@ -1,3 +1,4 @@
+// src/app/view-product/view-product.component.ts
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ApiService } from '../services/api.service';
@@ -10,50 +11,65 @@ import { ApiService } from '../services/api.service';
 export class ViewProductComponent implements OnInit {
   productId: any;
   product: any;
-  products: any[] = [];           // All products
-  filteredProducts: any[] = [];   // Filtered products (for search)
+  products: any[] = [];
+  filteredProducts: any[] = [];
   email: string = '';
   wishlistMsg: string = '';
   wishlist: number[] = [];
   cart: number[] = [];
 
-  constructor(
-    private activatedRoute: ActivatedRoute,
-    private api: ApiService
-  ) {}
+  constructor(private activatedRoute: ActivatedRoute, private api: ApiService) {}
 
   ngOnInit(): void {
     this.email = localStorage.getItem('email') || '';
 
-    // Fetch all products for displaying cards
+    // Load all products (for showing related items)
     this.api.getAllProducts().subscribe((res: any) => {
-      this.products = res;
-      this.filteredProducts = res; // initially show all products
+      this.products = res?.products || [];
+      this.filteredProducts = [...this.products];
     });
 
-    // Subscribe to search term from header
+    // subscribe to search (filter displayed list)
     this.api.searchKey.subscribe((term: string) => {
-      if (!term) {
-        this.filteredProducts = this.products;
+      const key = (term || '').toLowerCase().trim();
+      if (!key) {
+        this.filteredProducts = [...this.products];
       } else {
-        this.filteredProducts = this.products.filter(p =>
-          p.name.toLowerCase().includes(term.toLowerCase())
+        this.filteredProducts = this.products.filter((p) =>
+          (p.name || p.title || '').toLowerCase().includes(key)
         );
       }
     });
 
-    // Fetch wishlist/cart info if user logged in
+    // load wishlist/cart if logged
     if (this.email) {
       this.getMyItems();
     }
 
-    // Fetch single product if route has productId
+    // get productId from route and fetch detail
     this.activatedRoute.params.subscribe((params: any) => {
       this.productId = params['id'];
       if (this.productId) {
-        this.api.viewProduct(this.productId).subscribe((result: any) => {
-          this.product = result.product;
-        });
+        this.api.viewProduct(this.productId).subscribe(
+          (result: any) => {
+            this.product = result.product || this.products.find((p) => p.id == this.productId);
+            // graceful fallback if no product found
+            if (!this.product) {
+              this.product = {
+                id: this.productId,
+                name: 'Product not found',
+                price: 0,
+                description: '',
+                category: '',
+                image: 'https://via.placeholder.com/400x300?text=No+Product',
+              };
+            }
+          },
+          (err: any) => {
+            // fallback to cached product
+            this.product = this.api.products.find((p) => p.id == this.productId);
+          }
+        );
       }
     });
   }
@@ -64,22 +80,21 @@ export class ViewProductComponent implements OnInit {
       (result: any) => {
         this.wishlistMsg = result.message;
         this.getMyItems();
-        setTimeout(() => (this.wishlistMsg = ''), 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 3000);
       },
-      (result: any) => (this.wishlistMsg = result.error.message)
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
   removeFromWishlist(productId: any) {
+    if (!this.email) return alert('Login to remove wishlist!');
     this.api.removeFromWishlist(this.email, productId).subscribe(
       (result: any) => {
         this.wishlistMsg = result.message;
-        const index = this.wishlist.indexOf(productId);
-        if (index > -1) this.wishlist.splice(index, 1);
         this.getMyItems();
-        setTimeout(() => (this.wishlistMsg = ''), 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 3000);
       },
-      (result: any) => (this.wishlistMsg = result.error.message)
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
@@ -89,9 +104,9 @@ export class ViewProductComponent implements OnInit {
       (result: any) => {
         this.wishlistMsg = result.message;
         this.getMyItems();
-        setTimeout(() => (this.wishlistMsg = ''), 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 3000);
       },
-      (result: any) => (this.wishlistMsg = result.error.message)
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
@@ -99,35 +114,30 @@ export class ViewProductComponent implements OnInit {
     this.api.removeFromCart(this.email, productId).subscribe(
       (result: any) => {
         this.wishlistMsg = result.message;
-        const index = this.cart.indexOf(productId);
-        if (index > -1) this.cart.splice(index, 1);
         this.getMyItems();
-        setTimeout(() => (this.wishlistMsg = ''), 5000);
+        setTimeout(() => (this.wishlistMsg = ''), 3000);
       },
-      (result: any) => (this.wishlistMsg = result.error.message)
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
   getMyItems() {
     this.api.getWishlist(this.email).subscribe(
       (result: any) => {
-        // Update cart array
-        this.cart = result.cart.map((item: any) => item.productId);
+        this.cart = (result.cart || []).map((i: any) => i.productId);
         this.api.apiCart = [...this.cart];
         this.api.cartCount.next(this.cart);
 
-        // Update wishlist array
-        this.wishlist = result.wishlist.map((item: any) => item.productId);
+        this.wishlist = (result.wishlist || []).map((i: any) => i.productId);
         this.api.apiWishlist = [...this.wishlist];
 
-        // Update localStorage
-        localStorage.setItem('username', result.username);
-        localStorage.setItem('email', result.email);
-        localStorage.setItem('wishlist', JSON.stringify(result.wishlist));
-        localStorage.setItem('cart', JSON.stringify(result.cart));
-        localStorage.setItem('token', result.token);
+        localStorage.setItem('username', result.username || '');
+        localStorage.setItem('email', result.email || '');
+        localStorage.setItem('wishlist', JSON.stringify(result.wishlist || []));
+        localStorage.setItem('cart', JSON.stringify(result.cart || []));
+        localStorage.setItem('token', result.token || '');
       },
-      (err: any) => console.log(err.error.message)
+      (err: any) => console.log(err?.error?.message || err)
     );
   }
 }

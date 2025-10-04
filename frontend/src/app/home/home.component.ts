@@ -1,6 +1,8 @@
+// src/app/home/home.component.ts
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
   selector: 'app-home',
@@ -9,6 +11,7 @@ import { ApiService } from '../services/api.service';
 })
 export class HomeComponent implements OnInit {
   products: any[] = [];
+  filteredProducts: any[] = [];
   searchItem: string = '';
   email: string = '';
   username: string = '';
@@ -19,52 +22,63 @@ export class HomeComponent implements OnInit {
   constructor(private api: ApiService, private router: Router) {}
 
   ngOnInit(): void {
-    // Get user info from localStorage
     this.email = localStorage.getItem('email') || '';
     this.username = localStorage.getItem('username') || '';
 
-    // Fetch wishlist/cart for logged-in users
     if (this.email) {
       this.getMyItems();
     }
 
-    // Fetch all products
+    // fetch products once
     this.api.getAllProducts().subscribe(
       (res: any) => {
-        this.products = res.products || [];
+        this.products = res?.products || [];
+        this.filteredProducts = [...this.products];
         this.api.products = this.products;
         localStorage.setItem('products', JSON.stringify(this.products));
       },
-      (err: any) => console.error('Error fetching products', err)
+      (err: any) => {
+        console.error('Error fetching products', err);
+      }
     );
 
-    // Subscribe to search input from header
-    this.api.searchKey.subscribe((key: string) => {
-      this.searchItem = key || '';
+    // subscribe to search key with debounce
+    this.api.searchKey
+      .pipe(debounceTime(200), distinctUntilChanged())
+      .subscribe((key: string) => {
+        this.searchItem = key || '';
+        this.filterProducts();
+      });
+  }
+
+  // client-side filter
+  filterProducts() {
+    const key = (this.searchItem || '').toLowerCase().trim();
+    if (!key) {
+      this.filteredProducts = [...this.products];
+      return;
+    }
+    this.filteredProducts = this.products.filter((product) => {
+      const fields = [
+        product.name || product.title || '',
+        product.title || product.name || '',
+        product.category || '',
+        product.description || '',
+      ];
+      return fields.some((f: string) => f.toLowerCase().includes(key));
     });
   }
 
-  // Filter products dynamically for search
-  get filteredProducts() {
-    if (!this.searchItem) return this.products;
-    return this.products.filter((p) =>
-      p.title.toLowerCase().includes(this.searchItem.toLowerCase())
-    );
-  }
-
-  // ------------------ Wishlist ------------------
+  // wishlist/cart actions forward to ApiService
   addToWishlist(productId: number) {
     if (!this.email) return;
     this.api.addToWishlist(this.email, productId).subscribe(
       (res: any) => {
         this.wishlistMsg = res.message;
-        this.api.wishlistMsg = res.message;
         this.getMyItems();
         setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      (err: any) => {
-        this.wishlistMsg = err.error?.message || 'Error adding to wishlist';
-      }
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
@@ -73,29 +87,22 @@ export class HomeComponent implements OnInit {
     this.api.removeFromWishlist(this.email, productId).subscribe(
       (res: any) => {
         this.wishlistMsg = res.message;
-        this.api.wishlistMsg = res.message;
         this.getMyItems();
         setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      (err: any) => {
-        this.wishlistMsg = err.error?.message || 'Error removing from wishlist';
-      }
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
-  // ------------------ Cart ------------------
   addToCart(productId: number) {
-    if (!this.email) return;
+    if (!this.email) return alert('Please login to add to cart');
     this.api.addToCart(this.email, productId, 1).subscribe(
       (res: any) => {
         this.wishlistMsg = res.message;
-        this.api.wishlistMsg = res.message;
         this.getMyItems();
         setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      (err: any) => {
-        this.wishlistMsg = err.error?.message || 'Error adding to cart';
-      }
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
@@ -104,39 +111,33 @@ export class HomeComponent implements OnInit {
     this.api.removeFromCart(this.email, productId).subscribe(
       (res: any) => {
         this.wishlistMsg = res.message;
-        this.api.wishlistMsg = res.message;
         this.getMyItems();
         setTimeout(() => (this.wishlistMsg = ''), 5000);
       },
-      (err: any) => {
-        this.wishlistMsg = err.error?.message || 'Error removing from cart';
-      }
+      (err: any) => (this.wishlistMsg = err?.error?.message || 'Error')
     );
   }
 
-  // ------------------ Fetch wishlist & cart ------------------
+  // fetch wishlist/cart from server and update caches
   getMyItems() {
     if (!this.email) return;
-
     this.api.getWishlist(this.email).subscribe(
       (res: any) => {
-        // Update wishlist & cart arrays
-        this.wishlist = res.wishlist.map((item: any) => item.productId);
-        this.cart = res.cart.map((item: any) => item.productId);
-
-        // Update ApiService caches
+        this.wishlist = (res.wishlist || []).map((i: any) => i.productId);
+        this.cart = (res.cart || []).map((i: any) => i.productId);
         this.api.apiWishlist = [...this.wishlist];
         this.api.apiCart = [...this.cart];
-        this.api.cartCount.next(this.cart);
+        this.api.cartCount.next(this.api.apiCart);
 
-        // Store user data locally
-        localStorage.setItem('username', res.username);
-        localStorage.setItem('email', res.email);
-        localStorage.setItem('wishlist', JSON.stringify(res.wishlist));
-        localStorage.setItem('cart', JSON.stringify(res.cart));
-        localStorage.setItem('token', res.token);
+        localStorage.setItem('username', res.username || '');
+        localStorage.setItem('email', res.email || '');
+        localStorage.setItem('wishlist', JSON.stringify(res.wishlist || []));
+        localStorage.setItem('cart', JSON.stringify(res.cart || []));
+        localStorage.setItem('token', res.token || '');
       },
-      (err: any) => console.error('Error fetching user items', err)
+      (err: any) => {
+        console.error('Error getMyItems', err);
+      }
     );
   }
 }

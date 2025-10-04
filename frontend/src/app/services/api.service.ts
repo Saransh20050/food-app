@@ -1,3 +1,4 @@
+// src/app/services/api.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { BehaviorSubject } from 'rxjs';
@@ -10,10 +11,10 @@ const options = {
   providedIn: 'root',
 })
 export class ApiService {
-  // Search key shared between header and home/view components
-  searchKey = new BehaviorSubject('');
-  
-  // Messages and local cache
+  // Shared search key (header -> home/view)
+  searchKey = new BehaviorSubject<string>('');
+
+  // caches + messages
   wishlistMsg: string = '';
   apiWishlist: number[] = [];
   apiCart: number[] = [];
@@ -22,7 +23,7 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  // ------------------ Auth ------------------
+  // auth
   register(username: string, email: string, password: string) {
     return this.http.post('http://localhost:3000/register', {
       username,
@@ -35,7 +36,7 @@ export class ApiService {
     return this.http.post('http://localhost:3000/login', { email, password });
   }
 
-  // ------------------ Products ------------------
+  // products
   getAllProducts() {
     return this.http.get('http://localhost:3000/all-products');
   }
@@ -44,7 +45,12 @@ export class ApiService {
     return this.http.get('http://localhost:3000/view-product/' + productId);
   }
 
-  // ------------------ Auth Header ------------------
+  // server-side search (optional)
+  searchProducts(key: string) {
+    return this.http.get('http://localhost:3000/search/' + encodeURIComponent(key));
+  }
+
+  // token header
   appendToken() {
     const token = localStorage.getItem('token') || '';
     let headers = new HttpHeaders();
@@ -55,7 +61,7 @@ export class ApiService {
     return options;
   }
 
-  // ------------------ Wishlist ------------------
+  // wishlist
   addToWishlist(email: string, productId: number) {
     return this.http.post(
       'http://localhost:3000/addToWishlist/',
@@ -73,13 +79,10 @@ export class ApiService {
   }
 
   getWishlist(email: string) {
-    return this.http.get(
-      'http://localhost:3000/getWishlist/' + email,
-      this.appendToken()
-    );
+    return this.http.get('http://localhost:3000/getWishlist/' + email, this.appendToken());
   }
 
-  // ------------------ Cart ------------------
+  // cart
   addToCart(email: string, productId: number, count: number) {
     return this.http.post(
       'http://localhost:3000/addToCart/',
@@ -112,7 +115,7 @@ export class ApiService {
     );
   }
 
-  // ------------------ Checkout ------------------
+  // checkout
   addToCheckout(
     email: string,
     orderID: string,
@@ -121,29 +124,17 @@ export class ApiService {
     amount: number,
     status: string,
     products: any[],
-    detailes: any
+    details: any
   ) {
     return this.http.post(
       'http://localhost:3000/addToCheckout/',
-      {
-        email,
-        orderID,
-        transactionID,
-        dateAndTime,
-        amount,
-        status,
-        products,
-        detailes,
-      },
+      { email, orderID, transactionID, dateAndTime, amount, status, products, details },
       this.appendToken()
     );
   }
 
-  // ------------------ Orders ------------------
+  // orders
   getMyOrders(email: string) {
-    return this.http.get(
-      'http://localhost:3000/getMyOrders/' + email,
-      this.appendToken()
-    );
+    return this.http.get('http://localhost:3000/getMyOrders/' + email, this.appendToken());
   }
 }
