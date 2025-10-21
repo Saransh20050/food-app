@@ -1,4 +1,3 @@
-// src/app/home/home.component.ts
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../services/api.service';
@@ -16,6 +15,12 @@ export class HomeComponent implements OnInit {
   email: string = '';
   username: string = '';
   wishlistMsg: string = '';
+
+  // store full product objects for wishlist/cart
+  wishlistFull: any[] = [];
+  cartFull: any[] = [];
+
+  // keep productIds for heart/cart logic
   wishlist: number[] = [];
   cart: number[] = [];
 
@@ -37,9 +42,7 @@ export class HomeComponent implements OnInit {
         this.api.products = this.products;
         localStorage.setItem('products', JSON.stringify(this.products));
       },
-      (err: any) => {
-        console.error('Error fetching products', err);
-      }
+      (err: any) => console.error('Error fetching products', err)
     );
 
     // subscribe to search key with debounce
@@ -69,7 +72,7 @@ export class HomeComponent implements OnInit {
     });
   }
 
-  // wishlist/cart actions forward to ApiService
+  // wishlist/cart actions
   addToWishlist(productId: number) {
     if (!this.email) return;
     this.api.addToWishlist(this.email, productId).subscribe(
@@ -118,26 +121,29 @@ export class HomeComponent implements OnInit {
     );
   }
 
-  // fetch wishlist/cart from server and update caches
+  // fetch full wishlist and cart info
   getMyItems() {
     if (!this.email) return;
     this.api.getWishlist(this.email).subscribe(
       (res: any) => {
-        this.wishlist = (res.wishlist || []).map((i: any) => i.productId);
-        this.cart = (res.cart || []).map((i: any) => i.productId);
+        this.wishlistFull = res.wishlist || [];
+        this.cartFull = res.cart || [];
+
+        this.wishlist = this.wishlistFull.map((i: any) => i.productId);
+        this.cart = this.cartFull.map((i: any) => i.productId);
+
         this.api.apiWishlist = [...this.wishlist];
         this.api.apiCart = [...this.cart];
         this.api.cartCount.next(this.api.apiCart);
 
+        localStorage.setItem('wishlist', JSON.stringify(this.wishlistFull));
+        localStorage.setItem('cart', JSON.stringify(this.cartFull));
+
         localStorage.setItem('username', res.username || '');
         localStorage.setItem('email', res.email || '');
-        localStorage.setItem('wishlist', JSON.stringify(res.wishlist || []));
-        localStorage.setItem('cart', JSON.stringify(res.cart || []));
         localStorage.setItem('token', res.token || '');
       },
-      (err: any) => {
-        console.error('Error getMyItems', err);
-      }
+      (err: any) => console.error('Error getMyItems', err)
     );
   }
 }

@@ -1,0 +1,52 @@
+type User @table {
+  displayName: String!
+  createdAt: Timestamp!
+  email: String
+  photoUrl: String
+  bio: String
+}
+
+type Recipe @table {
+  title: String!
+  instructions: String!
+  ingredients: [String!]!
+  createdAt: Timestamp!
+  isPublic: Boolean!
+  creator: User
+  description: String
+  cuisineType: String
+  mealType: String
+  prepTime: Int
+  cookTime: Int
+  servings: Int
+  imageUrl: String
+  nutritionalInfo: String
+}
+
+type Ingredient @table {
+  name: String!
+  unit: String
+}
+
+type Review @table {
+  rating: Int!
+  createdAt: Timestamp!
+  reviewer: User
+  recipe: Recipe
+  comment: String
+}
+
+type Cookbook @table {
+  name: String!
+  createdAt: Timestamp!
+  isPublic: Boolean!
+  owner: User
+  description: String
+}
+
+type CookbookRecipe @table(key: ["cookbook", "recipe"]) {
+  cookbook: Cookbook!
+  recipe: Recipe!
+  addedAt: Timestamp!
+  notes: String
+}

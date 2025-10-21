@@ -272,20 +272,46 @@ const updateCartItemCount = (email, id, count) => {
 };
 
 // getWishlist
+// getWishlist
+// getWishlist
 const getWishlist = (email) => {
   console.log("Inside getWishlist function in dataservice");
-  return db.User.findOne({ email }).then((result) => {
+  return db.User.findOne({ email }).then(async (result) => {
     if (result) {
+      // fetch all products
+      const allProducts = await db.Product.find();
+
+      // map wishlist items to full product objects
+      const wishlistFull = result.wishlist.map((w) => {
+        const product = allProducts.find((p) => p.id === w.productId);
+        return {
+          productId: w.productId,
+          count: w.count || 1,
+          product: product || null,   // ✅ wrap product info under "product"
+        };
+      });
+
+      // map cart items to full product objects
+      const cartFull = result.cart.map((c) => {
+        const product = allProducts.find((p) => p.id === c.productId);
+        return {
+          productId: c.productId,
+          count: c.count || 1,
+          product: product || null,   // ✅ wrap product info under "product"
+        };
+      });
+
       const token = jwt.sign({ email }, "B68DC6BECCF4A68C3D8D78FE742E2", {
         algorithm: "HS256",
       });
+
       return {
         statusCode: 200,
-        message: `got my items of ${result.username}`,
+        message: `got items for ${result.username}`,
         username: result.username,
         checkout: result.checkout,
-        wishlist: result.wishlist,
-        cart: result.cart,
+        wishlist: wishlistFull,
+        cart: cartFull,
         email,
         token,
       };
@@ -297,6 +323,9 @@ const getWishlist = (email) => {
     }
   });
 };
+
+
+
 
 // getMyOrders
 const getMyOrders = (email) => {
