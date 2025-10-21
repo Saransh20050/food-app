@@ -42,12 +42,10 @@ export class WishlistComponent implements OnInit {
         this.api.apiCart = this.cart;
         this.api.cartCount.next(this.cart);
 
-        // === FIX APPLIED HERE ===
         // Map wishlist items to the full 'product' object returned by the back-end.
         this.products = wishlistItems
           .map((item: any) => item.product)
           .filter((p: any) => p != null); // Ensure we only include valid products
-        // ========================
 
         localStorage.setItem('username', result.username);
         localStorage.setItem('email', result.email);
